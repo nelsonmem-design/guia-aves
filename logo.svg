@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Logo: tucán">
+  <rect width="200" height="200" rx="44" fill="#1F4D3A"/>
+  <path d="M40 162 L176 150" stroke="#C49A6C" stroke-width="7" stroke-linecap="round"/>
+  <path d="M78 176 L70 196 L92 192 Z" fill="#111111"/>
+  <path d="M66 150 C56 118 66 82 96 72 C116 66 128 80 126 100 C124 128 110 152 88 162 Z" fill="#111111"/>
+  <path d="M100 78 C114 74 124 84 122 100 C110 106 98 98 94 88 Z" fill="#F6D33C"/>
+  <path d="M118 80 C146 64 178 70 190 90 C164 86 140 88 120 92 Z" fill="#7CC242"/>
+  <path d="M120 92 C140 88 164 86 190 90 C184 102 150 104 122 100 Z" fill="#F28C28"/>
+  <path d="M186 88 C190 92 190 96 186 98 Z" fill="#D7263D"/>
+  <circle cx="110" cy="84" r="6" fill="#9ED36A"/>
+  <circle cx="110" cy="84" r="3" fill="#111111"/>
+  <path d="M84 162 C90 168 98 168 104 160" stroke="#D7263D" stroke-width="6" fill="none"/>
+</svg>
