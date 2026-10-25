@@ -728,18 +728,47 @@
     ctx.fillText('Isla del Coco', cx + cw / 2, cy + ch - 5);
   }
 
+  // Los dos botones salen siempre; si una fuente no tiene mapa de la especie, se explica por qué (sinMapa)
+  const hayMapa = (e, modo) => modo === 'libro' ? !!e.mp : !!e.eb;
+
   function mapaHTML(e) {
-    if (!MAPA || (!e.mp && !e.eb)) return '';
-    const modos = [e.mp && ['libro', 'Libro'], e.eb && ['ebird', 'Registros eBird']].filter(Boolean);
+    if (!MAPA) return '';
+    const inicial = e.mp || !e.eb ? 'libro' : 'ebird';
     return `<div class="mapa" id="mapa">
-      <div class="mapa-modo" role="group" aria-label="Fuente del mapa">${modos.map(([m, t], i) =>
-        `<button data-modo="${m}" aria-pressed="${i === 0}">${t}</button>`).join('')}</div>
+      <div class="mapa-modo" role="group" aria-label="Fuente del mapa">${[['libro', 'Libro'], ['ebird', 'Registros eBird']].map(([m, t]) =>
+        `<button data-modo="${m}" aria-pressed="${m === inicial}">${t}</button>`).join('')}</div>
       <canvas id="mapa-lienzo" role="img" aria-label="Mapa de Costa Rica con la distribución de la especie"></canvas>
       <div class="mapa-leyenda" id="mapa-leyenda"></div>
     </div>`;
   }
 
+  // Códigos del Apéndice B de Dyer y Howell (campo e.mpa)
+  const APENDICE = {
+    P: 'visitante regular de alta mar',
+    V: 'muy rara o esporádica; no se registra todos los años',
+    X: 'excepcional, con 3 registros o menos',
+  };
+
+  function sinMapa(e, modo) {
+    if (modo === 'libro') {
+      if (e.mpa === undefined) return 'El libro no trae mapa de esta especie.';
+      const c = e.mpa, notas = [];
+      if (APENDICE[c[0]]) notas.push(APENDICE[c[0]]);
+      if (c.includes('(')) notas.push('sin registros comprobados de aves silvestres desde el año 2000');
+      if (c.includes('[')) notas.push('reportada, pero sin confirmar');
+      if (c.includes('Cocos')) notas.push('registrada solo en la Isla del Coco');
+      return `El libro no trae mapa de esta especie: solo la nombra en su lista de visitantes de alta mar, migratorias raras y divagantes${notas.length ? ` (${notas.join('; ')})` : ''}.`;
+    }
+    if (e.ebn === 'o') return 'eBird oculta los registros de esta especie para protegerla, así que no hay mapa de registros.';
+    if (e.ebn === 's') return 'eBird no separa esta forma de su especie en los datos públicos, así que no hay mapa de registros.';
+    return 'No hay registros públicos de eBird de esta especie en Costa Rica (datos de eBird vía GBIF).';
+  }
+
   function leyendaMapa(e, modo) {
+    if (!hayMapa(e, modo)) {
+      const fuente = modo === 'libro' ? 'Dyer y Howell, <i>Birds of Costa Rica</i> (2023)' : 'eBird (Cornell Lab), vía GBIF';
+      return `<p class="sin-mapa">${sinMapa(e, modo)}</p><p class="fuente">${fuente}.</p>`;
+    }
     if (modo === 'ebird') {
       const fecha = MAPA.ebird.fecha ? MAPA.ebird.fecha.split('-').reverse().join('/') : '';
       return `<p><i class="muestra" style="background:rgb(${COLOR_EBIRD})"></i>Con al menos un registro (celdas de unos 5 km)</p>
@@ -758,7 +787,8 @@
     const lienzo = document.getElementById('mapa-lienzo');
     let modo = caja.querySelector('[aria-pressed="true"]').dataset.modo;
     const pintar = () => {
-      dibujarMapa(lienzo, e, modo, lienzo.clientWidth || caja.clientWidth);
+      lienzo.hidden = !hayMapa(e, modo);
+      if (!lienzo.hidden) dibujarMapa(lienzo, e, modo, lienzo.clientWidth || caja.clientWidth);
       document.getElementById('mapa-leyenda').innerHTML = leyendaMapa(e, modo);
     };
     caja.querySelectorAll('[data-modo]').forEach(bt => {
@@ -899,7 +929,7 @@
     };
 
     if (fotoVisor !== null) visor(fotos, n);
-    else if (mapaVisor) visorMapa(e, mapaVisor);
+    else if (mapaVisor && hayMapa(e, mapaVisor)) visorMapa(e, mapaVisor);
     else window.scrollTo(0, 0);
   }
 

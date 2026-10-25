@@ -310,3 +310,4 @@ main { max-width: 760px; margin: 0 auto; padding: 12px 16px 40px; }
 .mapa-leyenda span { display: inline-block; margin-right: 10px; }
 .mapa-leyenda .muestra { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
 .mapa-leyenda .fuente { font-size: 11px; }
+.mapa-leyenda .sin-mapa { margin: 4px 0 6px; padding: 10px 12px; border-radius: 8px; background: var(--fondo); color: var(--texto); font-size: 14px; line-height: 1.4; }
