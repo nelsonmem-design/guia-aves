@@ -240,7 +240,7 @@
   // En «¿A qué grupo pertenece?» los grupos de una misma familia cuentan como uno (u);
   // la Isla del Coco y las Especies raras no son grupos que se reconozcan por la forma.
   const unidad = g => g.u || g.nombre;
-  const sinUnidad = g => !g.cat || g.nombre.startsWith('Especies raras');
+  const sinUnidad = g => !g.cat || g.nombre.startsWith('Rare Species');
 
   // Ámbito de práctica: 'repaso' (pendientes de hoy), 'todas', 'c-<categoría>' o 'g-<grupo>'
   function especiesDe(ambito) {
@@ -254,7 +254,7 @@
     if (ambito === 'repaso') return 'Repaso del día';
     if (ambito.startsWith('c-')) return categorias.get(ambito.slice(2))?.nombre || '';
     if (ambito.startsWith('g-')) return grupos.get(ambito.slice(2))?.nombre || '';
-    return 'Todas las aves';
+    return 'All Birds';
   }
 
   // Una ronda de 10: primero las que toca repasar, luego las nuevas (en el orden de la guía) y por último las menos sabidas
@@ -371,8 +371,8 @@
 
   /* ---------- piezas de lista ---------- */
   function marcas(e) {
-    return (e.c ? '<span class="marca caribe">Caribe</span>' : '') +
-           (e.x ? '<span class="marca rara">Rara o difícil</span>' : '');
+    return (e.c ? '<span class="marca caribe">Caribbean</span>' : '') +
+           (e.x ? '<span class="marca rara">Rare or Hard to See</span>' : '');
   }
 
   function filaEspecie(e, conGrupo = false) {
@@ -421,9 +421,9 @@
         <input id="q" type="search" placeholder="Buscar en inglés o en español" autocomplete="off" value="${esc(consulta)}">
       </div>
       <div class="chips">
-        <button class="chip" data-ir="#/filtro/caribe">Caribe<b>${nCar}</b></button>
-        <button class="chip" data-ir="#/filtro/raras">Raras o difíciles<b>${nRar}</b></button>
-        <button class="chip" data-ir="#/filtro/coco">Isla del Coco<b>${nCoco}</b></button>
+        <button class="chip" data-ir="#/filtro/caribe">Caribbean<b>${nCar}</b></button>
+        <button class="chip" data-ir="#/filtro/raras">Rare or Hard to See<b>${nRar}</b></button>
+        <button class="chip" data-ir="#/filtro/coco">Cocos Island<b>${nCoco}</b></button>
         <button class="chip" data-ir="#/filtro/mias">Mis fotos<b>${misFotos.size}</b></button>
       </div>
       <div id="resultados"></div>`;
@@ -477,13 +477,13 @@
 
   function vistaCategoria(c) {
     cabecera(c.nombre, `${c.n} especies`);
-    const rara = g => g.nombre.startsWith('Especies raras');
+    const rara = g => g.nombre.startsWith('Rare Species');
     const propios = gruposAlfa.filter(g => g.cat === c.id).sort((a, b) => rara(a) - rara(b));
     const otras = G.especies.filter(e => e.k === c.id && !grupos.get(e.g).cat);
     $vista.innerHTML = `
       <p class="nota">${esc(c.detalle)}.</p>
       <ul class="lista">${propios.map(filaGrupo).join('')}</ul>
-      ${otras.length ? `<h2 class="seccion">Isla del Coco y especies raras</h2>
+      ${otras.length ? `<h2 class="seccion">Cocos Island and Rare Species</h2>
         <ul class="lista">${otras.map(e => filaEspecie(e, true)).join('')}</ul>` : ''}`;
     activarEnlaces();
   }
@@ -517,9 +517,9 @@
 
   function vistaFiltro(tipo) {
     const def = {
-      caribe: ['Especies del Caribe', 'Solo se encuentran en la vertiente del Caribe', e => e.c],
-      raras: ['Raras o difíciles de observar', 'Furtivas, casuales o con pocos registros', e => e.x],
-      coco: ['Aves de la Isla del Coco', 'Aves marinas y las 3 endémicas de la isla', e => e.ic],
+      caribe: ['Caribbean Species', 'Solo se encuentran en la vertiente del Caribe', e => e.c],
+      raras: ['Rare or Hard to See', 'Furtivas, casuales o con pocos registros', e => e.x],
+      coco: ['Cocos Island Birds', 'Aves marinas y las 3 endémicas de la isla', e => e.ic],
       mias: ['Mis fotos', 'Especies con fotos personales', e => misFotos.has(e.id)],
     }[tipo] || ['Especies', '', () => true];
     cabecera(def[0], def[1]);
@@ -582,7 +582,23 @@
     P: { color: [232, 190, 40], nombre: 'De paso' },
   };
   const COLOR_EBIRD = [216, 110, 30];
-  const SAN_JOSE = [-84.08, 9.93];
+  // Cabeceras de cantón como referencia: [cantón, lon, lat, lado de la etiqueta (d, i, a = arriba, b = abajo), 1 = también en el mapa pequeño]
+  const CANTONES = [
+    ['San José', -84.08, 9.93, 'i', 1], ['Liberia', -85.437, 10.635, 'd', 1], ['Santa Cruz', -85.585, 10.261, 'd', 1],
+    ['Nicoya', -85.452, 10.148, 'd', 1], ['Upala', -85.018, 10.898, 'd', 1], ['Los Chiles', -84.714, 11.035, 'd', 1],
+    ['San Carlos', -84.429, 10.325, 'd', 1], ['Monteverde', -84.825, 10.316, 'a', 1], ['Puntarenas', -84.833, 9.976, 'b', 1],
+    ['Quepos', -84.161, 9.431, 'i', 1], ['Pérez Zeledón', -83.703, 9.373, 'd', 1], ['Osa', -83.524, 8.958, 'i', 1],
+    ['Golfito', -83.165, 8.64, 'i', 1], ['Limón', -83.033, 9.99, 'd', 1], ['Talamanca', -82.833, 9.63, 'i', 1],
+    ['Pococí', -83.785, 10.215, 'd', 1], ['Sarapiquí', -84.016, 10.457, 'd', 1], ['Turrialba', -83.683, 9.905, 'd', 1],
+    ['La Cruz', -85.647, 11.072, 'd'], ['Bagaces', -85.255, 10.531, 'd'], ['Carrillo', -85.556, 10.448, 'i'],
+    ['Cañas', -85.092, 10.428, 'i'], ['Tilarán', -84.966, 10.466, 'd'],
+    ['Nandayure', -85.263, 10.012, 'd'], ['Guatuso', -84.822, 10.672, 'd'], ['San Ramón', -84.47, 10.087, 'i'],
+    ['Alajuela', -84.214, 10.016, 'a'], ['Heredia', -84.117, 9.998, 'd'], ['Cartago', -83.919, 9.864, 'd'],
+    ['Esparza', -84.665, 9.993, 'd'], ['Garabito', -84.629, 9.615, 'i'], ['Parrita', -84.322, 9.52, 'i'],
+    ['Dota', -83.968, 9.649, 'd'], ['Buenos Aires', -83.331, 9.166, 'd'], ['Coto Brus', -82.968, 8.821, 'd'],
+    ['Corredores', -82.936, 8.651, 'd'], ['Puerto Jiménez', -83.3, 8.535, 'i'], ['Siquirres', -83.507, 10.098, 'i'],
+    ['Matina', -83.287, 10.077, 'd'],
+  ];
   let baseMapa = null;
 
   const bytes64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
@@ -666,7 +682,7 @@
   const ebirdEn = (bits, k) => (bits[k >> 3] >> (7 - (k & 7))) & 1;
 
   // Dibuja el mapa en un canvas de `ancho` px (CSS); en la vista grande se usa un ancho mayor
-  function dibujarMapa(canvas, e, modo, ancho) {
+  function dibujarMapa(canvas, e, modo, ancho, grande) {
     const B = prepararBase(), b = MAPA.base, eb = MAPA.ebird;
     const capas = modo === 'libro' && e.mp ? capasMapa(e.mp) : [];
     const bits = modo === 'ebird' && e.eb ? bytes64(e.eb[0]) : null;
@@ -709,9 +725,20 @@
       for (const anillo of b.contornos[iso]) anillo.forEach(([lo, la], n) => n ? ctx.lineTo(x(lo), y(la)) : ctx.moveTo(x(lo), y(la)));
       ctx.strokeStyle = color; ctx.lineWidth = grosor / Math.min(1.6, esc) ; ctx.lineJoin = 'round'; ctx.stroke();
     }
-    // San José como referencia
-    ctx.fillStyle = '#222';
-    ctx.beginPath(); ctx.arc(x(SAN_JOSE[0]), y(SAN_JOSE[1]), 2.4, 0, 7); ctx.fill();
+    // Cantones como referencia: en el mapa pequeño solo los principales; en el grande, todos los de la lista
+    const letra = grande ? 6 : 7.5, punto = grande ? 1.5 : 1.9;
+    ctx.font = `600 ${letra}px sans-serif`; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+    for (const [nombre, lo, la, lado, chico] of CANTONES) {
+      if (!grande && !chico) continue;
+      const px = x(lo), py = y(la);
+      ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(px, py, punto, 0, 7); ctx.fill();
+      const vertical = lado === 'a' || lado === 'b';
+      const tx = vertical ? px : px + (lado === 'd' ? 1 : -1) * (punto + 1.6), ty = vertical ? py + (lado === 'a' ? -1 : 1) * letra * 0.95 : py;
+      ctx.textAlign = vertical ? 'center' : lado === 'd' ? 'left' : 'right';
+      ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = letra * 0.38; ctx.strokeText(nombre, tx, ty);
+      ctx.fillStyle = '#2b2e2a'; ctx.fillText(nombre, tx, ty);
+    }
+    ctx.textBaseline = 'alphabetic';
 
     // Isla del Coco, en un recuadro abajo a la izquierda (no está a escala ni en su posición real)
     const c = b.coco, cx = 6, cy = B.H - 6 - 66, cw = 96, ch = 66, ce = Math.min((cw - 8) / c.ancho, (ch - 18) / c.alto);
@@ -772,13 +799,13 @@
     if (modo === 'ebird') {
       const fecha = MAPA.ebird.fecha ? MAPA.ebird.fecha.split('-').reverse().join('/') : '';
       return `<p><i class="muestra" style="background:rgb(${COLOR_EBIRD})"></i>Con al menos un registro (celdas de unos 5 km)</p>
-        <p class="fuente">${e.eb[2].toLocaleString('es-CR')} registros de eBird en Costa Rica (Cornell Lab), vía GBIF, CC BY 4.0. Consultado el ${fecha}. ● San José</p>`;
+        <p class="fuente">${e.eb[2].toLocaleString('es-CR')} registros de eBird en Costa Rica (Cornell Lab), vía GBIF, CC BY 4.0. Consultado el ${fecha}. ● Cabecera de cantón</p>`;
     }
     const tipos = [...new Set(capasMapa(e.mp).map(c => c.t))];
     // e.mpg: especies sin ficha en el libro cuya zona da la guía base (Isla del Coco)
     const fuente = e.mpg ? 'Según Garrigues y Dean, <i>Aves de Costa Rica</i>' : 'Zonas según Dyer y Howell, <i>Birds of Costa Rica</i> (2023)';
     return `<p>${tipos.map(t => `<span><i class="muestra" style="background:rgb(${TIPOS[t].color})"></i>${TIPOS[t].nombre}</span>`).join('')}</p>
-      <p class="fuente">${fuente}. Dibujo propio. ● San José</p>`;
+      <p class="fuente">${fuente}. Dibujo propio. ● Cabecera de cantón</p>`;
   }
 
   function activarMapa(e) {
@@ -805,7 +832,7 @@
   // Vista grande del mapa: se dibuja más ancho y se abre en el visor con zoom
   function visorMapa(e, modo) {
     const c = document.createElement('canvas');
-    dibujarMapa(c, e, modo, 1100 / (window.devicePixelRatio || 1));
+    dibujarMapa(c, e, modo, 1100 / (window.devicePixelRatio || 1), true);
     visor([c.toDataURL('image/png')], 0);
   }
 
@@ -1067,7 +1094,7 @@
       <h2 class="seccion">¿A qué grupo pertenece?</h2>
       <p class="ayuda">Antes de aprender cada especie, aprende a reconocer el grupo por su forma y su comportamiento: así sabrás dónde buscarla en la guía.</p>
       <div class="chips envolver">
-        <button class="chip" data-ir="#/practica/grupo/todas">Todas las aves</button>
+        <button class="chip" data-ir="#/practica/grupo/todas">All Birds</button>
         ${G.categorias.map(c => `<button class="chip" data-ir="#/practica/grupo/c-${c.id}">${esc(c.nombre)}</button>`).join('')}
       </div>
 
@@ -1090,7 +1117,7 @@
     const ids = G.especies.filter(e => e.k === c.id).map(e => e.id);
     const dom = nDominadas(ids);
     cabecera(c.nombre, 'Aprender');
-    const rara = g => g.nombre.startsWith('Especies raras');
+    const rara = g => g.nombre.startsWith('Rare Species');
     const propios = gruposAlfa.filter(g => g.cat === c.id).sort((a, b) => rara(a) - rara(b));
     $vista.innerHTML = `
       <div class="practicar">
