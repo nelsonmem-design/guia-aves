@@ -263,12 +263,27 @@
     return 'All Birds';
   }
 
-  // Una ronda de 10: primero las que toca repasar, luego las nuevas (en el orden de la guía) y por último las menos sabidas
+  // Varias especies de grupos distintos, en orden: una de cada grupo (los grupos al azar), luego otra de cada uno…
+  function repartirPorGrupo(ids) {
+    const porGrupo = new Map();
+    for (const id of barajar(ids)) {
+      const g = especies.get(id).g;
+      if (!porGrupo.has(g)) porGrupo.set(g, []);
+      porGrupo.get(g).push(id);
+    }
+    const colas = [...porGrupo.values()], salida = [];
+    while (colas.some(c => c.length)) for (const c of colas) if (c.length) salida.push(c.shift());
+    return salida;
+  }
+
+  // Una ronda de 10: primero las que toca repasar, luego las nuevas y por último las menos sabidas.
+  // En un grupo, las nuevas van en el orden de la guía; en una categoría o en «All Birds», repartidas entre
+  // todos sus grupos, para que no salgan solo los patos de Acuáticas.
   function armarRonda(modo, ambito) {
     let ids = especiesDe(ambito);
-    if (modo === 'grupo') return barajar(ids.filter(id => !sinUnidad(grupos.get(especies.get(id).g)))).slice(0, 10);
+    if (modo === 'grupo') return repartirPorGrupo(ids.filter(id => !sinUnidad(grupos.get(especies.get(id).g)))).slice(0, 10);
     const pend = ids.filter(pendiente).sort((a, b) => progreso[a].p - progreso[b].p);
-    const nuevas = ids.filter(id => !progreso[id]);
+    const nuevas = ambito.startsWith('g-') ? ids.filter(id => !progreso[id]) : repartirPorGrupo(ids.filter(id => !progreso[id]));
     const resto = ids.filter(id => progreso[id] && !pendiente(id)).sort((a, b) => progreso[a].n - progreso[b].n);
     return barajar([...pend, ...nuevas, ...resto].slice(0, 10));
   }
@@ -1213,7 +1228,8 @@
     const id = r.cola[r.i], e = especies.get(id), g = grupos.get(e.g);
     // Cada pregunta toma una de las fotos de la especie al azar, para no aprenderse una sola foto
     if (!r.q || r.q.i !== r.i) {
-      r.q = { i: r.i, ops: modo === 'grupo' ? opcionesGrupo(e, ambito) : opcionesEspecie(e), elegida: null, foto: barajar(fotosDe(e))[0] };
+      // (px: la foto principal se ve muy lejos o tapada y no se usa en las prácticas)
+      r.q = { i: r.i, ops: modo === 'grupo' ? opcionesGrupo(e, ambito) : opcionesEspecie(e), elegida: null, foto: barajar(fotosDe(e).slice(e.px ? 1 : 0))[0] };
     }
     const q = r.q;
     const correcta = modo === 'grupo' ? unidad(g) : id;
