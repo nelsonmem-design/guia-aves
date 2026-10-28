@@ -89,6 +89,8 @@
   const normal = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const foto = id => `fotos/${id}.webp`;
   const mini = id => `fotos/min/${id}.webp`;
+  // Todas las fotos de la guía de una especie: la del documento y las de iNaturalist (<id>-2, -3, -4)
+  const fotosDe = e => [foto(e.id), ...(e.cx || []).map((_, k) => `fotos/${e.id}-${k + 2}.webp`)];
   const paginas = p => !p ? '' : p[0] === p[1] ? `pág. ${p[0]}` : `págs. ${p[0]} a ${p[1]}`;
 
   function aviso(texto) {
@@ -242,9 +244,12 @@
   const unidad = g => g.u || g.nombre;
   const sinUnidad = g => !g.cat || g.nombre.startsWith('Rare Species');
 
-  // Ámbito de práctica: 'repaso' (pendientes de hoy), 'todas', 'c-<categoría>' o 'g-<grupo>'
+  // Ámbito de práctica: 'repaso' (pendientes de hoy), 'todas', 'c-<categoría>' o 'g-<grupo>';
+  // 'rc-<categoría>' y 'rg-<grupo>' son el repaso de hoy solo de ese tema
+  const esRepaso = ambito => ambito === 'repaso' || /^r[cg]-/.test(ambito);
   function especiesDe(ambito) {
     if (ambito === 'repaso') return G.especies.filter(e => pendiente(e.id)).map(e => e.id);
+    if (/^r[cg]-/.test(ambito)) return especiesDe(ambito.slice(1)).filter(pendiente);
     if (ambito.startsWith('c-')) return G.especies.filter(e => e.k === ambito.slice(2)).map(e => e.id);
     if (ambito.startsWith('g-')) return grupos.get(ambito.slice(2))?.especies || [];
     return G.especies.map(e => e.id);
@@ -252,6 +257,7 @@
 
   function nombreAmbito(ambito) {
     if (ambito === 'repaso') return 'Repaso del día';
+    if (/^r[cg]-/.test(ambito)) return `Repaso · ${nombreAmbito(ambito.slice(1))}`;
     if (ambito.startsWith('c-')) return categorias.get(ambito.slice(2))?.nombre || '';
     if (ambito.startsWith('g-')) return grupos.get(ambito.slice(2))?.nombre || '';
     return 'All Birds';
@@ -267,20 +273,24 @@
     return barajar([...pend, ...nuevas, ...resto].slice(0, 10));
   }
 
-  // Opciones parecidas: la especie con que más se ha confundido, las de su grupo, las de su familia y las de su categoría
+  // Opciones parecidas: la especie con que más se ha confundido, las de su grupo, las de su familia y las de su categoría.
+  // Todas son del mismo tema (categoría) que la especie: si se practica Acuáticas, solo salen aves acuáticas.
   function opcionesEspecie(e) {
     const g = grupos.get(e.g);
-    const confusa = Object.entries(progreso[e.id]?.c || {}).sort((a, b) => b[1] - a[1]).map(x => x[0]).filter(id => especies.has(id)).slice(0, 1);
-    const familia = G.grupos.filter(o => o !== g && g.u && o.u === g.u).flatMap(o => o.especies);
+    const delTema = id => especies.get(id)?.k === e.k;
+    const confusa = Object.entries(progreso[e.id]?.c || {}).sort((a, b) => b[1] - a[1]).map(x => x[0]).filter(delTema).slice(0, 1);
+    const familia = G.grupos.filter(o => o !== g && g.u && o.u === g.u).flatMap(o => o.especies).filter(delTema);
     const categoria = G.especies.filter(o => o.k === e.k).map(o => o.id);
     const cand = [...confusa, ...barajar(g.especies), ...barajar(familia), ...barajar(categoria)];
     return barajar([e.id, ...[...new Set(cand)].filter(id => id !== e.id).slice(0, 3)]);
   }
 
-  function opcionesGrupo(e) {
+  // En una categoría solo se ofrecen sus grupos; en «All Birds», primero los de la misma categoría y luego cualquiera
+  function opcionesGrupo(e, ambito) {
     const g = grupos.get(e.g);
     const validos = G.grupos.filter(o => !sinUnidad(o));
-    const cand = [...barajar(validos.filter(o => o.cat === g.cat)), ...barajar(validos)].map(unidad);
+    const tema = ambito.startsWith('c-') ? [] : validos;
+    const cand = [...barajar(validos.filter(o => o.cat === g.cat)), ...barajar(tema)].map(unidad);
     return barajar([unidad(g), ...[...new Set(cand)].filter(u => u !== unidad(g)).slice(0, 3)]);
   }
 
@@ -299,8 +309,8 @@
     if (p[1] === 'comparar') return '#/aprender';
     if (p[1] === 'aprender' && p[2] === 'grupo' && grupos.get(p[3])?.cat) return `#/aprender/cat/${grupos.get(p[3]).cat}`;
     if (p[1] === 'aprender' && p[2]) return '#/aprender';
-    if (p[1] === 'practica' && p[3]?.startsWith('g-')) return `#/aprender/grupo/${p[3].slice(2)}`;
-    if (p[1] === 'practica' && p[3]?.startsWith('c-')) return `#/aprender/cat/${p[3].slice(2)}`;
+    if (p[1] === 'practica' && /^r?g-/.test(p[3] || '')) return `#/aprender/grupo/${p[3].replace(/^r?g-/, '')}`;
+    if (p[1] === 'practica' && /^r?c-/.test(p[3] || '')) return `#/aprender/cat/${p[3].replace(/^r?c-/, '')}`;
     if (p[1] === 'practica') return '#/aprender';
     return '#/';
   }
@@ -841,7 +851,8 @@
     cabecera(e.en, g.nombre);
     const propias = ordenar(await BD.deEspecie(e.id));
     if (location.hash.split('/')[2] !== encodeURIComponent(e.id) && location.hash.split('/')[2] !== e.id) return;
-    const fotos = propias.length ? propias.map(r => urlBlob(r.foto)) : [foto(e.id)];
+    // Las fotos personales reemplazan la principal; las demás fotos de la guía siguen después
+    const fotos = propias.length ? [...propias.map(r => urlBlob(r.foto)), ...fotosDe(e).slice(1)] : fotosDe(e);
     let n = Math.min(fotoVisor ?? 0, fotos.length - 1);
 
     const idx = g.especies.indexOf(e.id);
@@ -1085,6 +1096,11 @@
           <span>${nPend ? `${nPend} ${nPend === 1 ? 'especie pendiente' : 'especies pendientes'}` : nEmp ? 'Ya repasaste todo lo de hoy' : 'Empieza practicando un grupo'}</span></span>
         <button class="btn" data-ir="#/practica/especie/repaso"${nPend ? '' : ' disabled'}>Repasar</button>
       </div>
+      ${nPend ? `<p class="ayuda">O repasa un solo tema:</p>
+        <div class="chips envolver">${G.categorias.map(c => {
+          const k = especiesDe('rc-' + c.id).length;
+          return k ? `<button class="chip" data-ir="#/practica/especie/rc-${c.id}">${esc(c.nombre)} (${k})</button>` : '';
+        }).join('')}</div>` : ''}
       <p class="estado-repaso">${barra(nDom, todas.length)}<span>Dominas ${nDom} de ${todas.length} especies · ${nEmp} empezadas</span></p>
 
       <h2 class="seccion">Practicar y ver tu progreso</h2>
@@ -1119,11 +1135,13 @@
     cabecera(c.nombre, 'Aprender');
     const rara = g => g.nombre.startsWith('Rare Species');
     const propios = gruposAlfa.filter(g => g.cat === c.id).sort((a, b) => rara(a) - rara(b));
+    const nPend = especiesDe('rc-' + c.id).length;
     $vista.innerHTML = `
       <div class="practicar">
         <p>${barra(dom, ids.length)}<span>Dominas ${dom} de ${ids.length} especies</span></p>
         <div class="botones">
           <button class="btn" data-ir="#/practica/especie/c-${c.id}">${ICONO.aprender}Practicar toda la categoría</button>
+          ${nPend ? `<button class="btn sec" data-ir="#/practica/especie/rc-${c.id}">Repasar solo esta categoría (${nPend})</button>` : ''}
           <button class="btn sec" data-ir="#/practica/grupo/c-${c.id}">¿A qué grupo pertenece?</button>
         </div>
       </div>
@@ -1141,12 +1159,14 @@
 
   function vistaAprenderGrupo(g) {
     const dom = nDominadas(g.especies);
+    const nPend = especiesDe('rg-' + g.id).length;
     cabecera(g.nombre, 'Aprender');
     $vista.innerHTML = `
       <div class="practicar">
         <p>${barra(dom, g.especies.length)}<span>Dominas ${dom} de ${g.especies.length} especies</span></p>
         <div class="botones">
           <button class="btn" data-ir="#/practica/especie/g-${g.id}">${ICONO.aprender}Practicar este grupo</button>
+          ${nPend ? `<button class="btn sec" data-ir="#/practica/especie/rg-${g.id}">Repasar solo este grupo (${nPend})</button>` : ''}
           <button class="btn sec" data-ir="#/grupo/${g.id}">${ICONO.libro}Estudiar en la guía</button>
         </div>
       </div>
@@ -1183,7 +1203,7 @@
     const r = ronda;
     cabecera(modo === 'grupo' ? '¿A qué grupo pertenece?' : '¿Qué especie es?', nombreAmbito(ambito));
     if (!r.cola.length) {
-      $vista.innerHTML = `<p class="vacio">${ambito === 'repaso' ? 'No tienes repasos pendientes hoy. Elige un grupo o una categoría para aprender especies nuevas.' : 'No hay especies para practicar aquí.'}</p>
+      $vista.innerHTML = `<p class="vacio">${esRepaso(ambito) ? 'No tienes repasos pendientes hoy. Elige un grupo o una categoría para aprender especies nuevas.' : 'No hay especies para practicar aquí.'}</p>
         <div class="botones centrar"><button class="btn" data-ir="#/aprender">Ir a Aprender</button></div>`;
       activarEnlaces();
       return;
@@ -1191,7 +1211,10 @@
     if (r.i >= r.cola.length) { resumenRonda(r, ambito); return; }
 
     const id = r.cola[r.i], e = especies.get(id), g = grupos.get(e.g);
-    if (!r.q || r.q.i !== r.i) r.q = { i: r.i, ops: modo === 'grupo' ? opcionesGrupo(e) : opcionesEspecie(e), elegida: null };
+    // Cada pregunta toma una de las fotos de la especie al azar, para no aprenderse una sola foto
+    if (!r.q || r.q.i !== r.i) {
+      r.q = { i: r.i, ops: modo === 'grupo' ? opcionesGrupo(e, ambito) : opcionesEspecie(e), elegida: null, foto: barajar(fotosDe(e))[0] };
+    }
     const q = r.q;
     const correcta = modo === 'grupo' ? unidad(g) : id;
     const etiqueta = o => modo === 'grupo' ? `<strong>${esc(o)}</strong>`
@@ -1199,7 +1222,7 @@
 
     $vista.innerHTML = `
       <div class="avance-ronda"><span>Pregunta ${r.i + 1} de ${r.cola.length}</span><span>${r.aciertos} ${r.aciertos === 1 ? 'acierto' : 'aciertos'}</span></div>
-      <div class="ficha-foto"><img src="${foto(id)}" alt="Foto del ave que hay que reconocer"></div>
+      <div class="ficha-foto"><img src="${q.foto}" alt="Foto del ave que hay que reconocer"></div>
       <div class="opciones">${q.ops.map((o, k) => `<button class="opcion" data-k="${k}">${etiqueta(o)}</button>`).join('')}</div>
       <div id="respuesta"></div>`;
 
@@ -1300,7 +1323,9 @@
     cabecera('Créditos de fotos', 'Autores y licencias');
     $vista.innerHTML = `
       <div class="creditos">
-        <p class="nota">Las fotos de esta guía provienen de Wikimedia Commons y se usan según la licencia que indica su autor.
+        <p class="nota">La foto principal de cada especie proviene de Wikimedia Commons; las otras fotos de la galería de la ficha
+        y de las prácticas, de observaciones de iNaturalist con identificación confirmada por la comunidad (grado de investigación).
+        Todas se usan según la licencia que indica su autor.
         Los textos son de redacción propia, a partir de Garrigues y Dean, <i>Aves de Costa Rica</i>, 2.ª edición; los de «Más para identificar»,
         a partir de Dyer y Howell, <i>Birds of Costa Rica</i>, Princeton University Press, 2023.
         Los mapas de la ficha son un dibujo propio: «Libro» resume las zonas y alturas que da ese libro para cada especie;
@@ -1310,7 +1335,8 @@
         ${(window.AndroidApp && window.AndroidApp.buscarActualizacion) || ENWEB ? '<div class="botones"><button class="btn sec" id="btn-actualizar">Buscar actualización</button></div>' : ''}
         ${gruposAlfa.map(g => `<h3>${esc(g.nombre)}</h3>${g.especies.map(id => {
           const e = especies.get(id);
-          return `<p><b>${esc(e.en)}</b> (${esc(e.es)}): ${esc(e.cr[0])}${e.cr[1] ? ` <span class="lic">· ${esc(e.cr[1])}</span>` : ''}</p>`;
+          const otras = (e.cx || []).map((c, k) => `foto ${k + 2}: ${esc(c[0])} <span class="lic">· ${esc(c[1])}</span>`).join('; ');
+          return `<p><b>${esc(e.en)}</b> (${esc(e.es)}): ${esc(e.cr[0])}${e.cr[1] ? ` <span class="lic">· ${esc(e.cr[1])}</span>` : ''}${otras ? `; iNaturalist, ${otras}` : ''}</p>`;
         }).join('')}`).join('')}
       </div>`;
     const btn = document.getElementById('btn-actualizar');
